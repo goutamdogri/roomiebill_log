@@ -90,7 +90,7 @@ function initLiveLogServer(server) {
     }
 
     console.log(
-      `[WS] Client connected: ${ip}  (total: ${broadcastManager.clientCount + 1})  (clientId: ${clientId})`,
+      `[WS] Client connected: ${ip}  (total: ${broadcastManager.clientCount + 1})`,
     );
 
     broadcastManager.addClient(ws, { clientId });
