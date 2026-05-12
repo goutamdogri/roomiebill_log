@@ -1,1 +1,230 @@
 @import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Theme System — CSS Custom Properties
+   Dark: Gun Metal base, Xanthous + Mid Blue accents
+   Light: Lavender Buttermilk base, Chartreuse + Maroon accents
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root,
+[data-theme="dark"] {
+  --app-primary: #22a779;
+
+  --bg-primary: #09090b;
+  --bg-secondary: #0c0c0f;
+  --bg-card: #141418;
+  --bg-card-hover: #1a1a20;
+  --bg-input: #111114;
+  --bg-elevated: #1e1e24;
+
+  --accent-primary: #22a779;
+  --accent-secondary: #285ccc;
+  --accent-highlight: #e1ff51;
+  --accent-danger: #780115;
+
+  --text-primary: #f0ede8;
+  --text-secondary: #9b9690;
+  --text-muted: #5c5852;
+
+  --border-default: #1e1e24;
+  --border-hover: #2a2a32;
+
+  --status-success: #34d399;
+  --status-warning: #f7b638;
+  --status-error: #ef4444;
+
+  --shadow-glow: rgba(247, 182, 56, 0.08);
+}
+
+[data-theme="light"] {
+  --app-primary: #22a779;
+
+  --bg-primary: #faf8f3;
+  --bg-secondary: #f3f0e8;
+  --bg-card: #ffffff;
+  --bg-card-hover: #faf7f0;
+  --bg-input: #f5f2eb;
+  --bg-elevated: #eae7df;
+
+  --accent-primary: #780115;
+  --accent-secondary: #285ccc;
+  --accent-highlight: #d4a017;
+  --accent-danger: #780115;
+
+  --text-primary: #1a1a1a;
+  --text-secondary: #4a4540;
+  --text-muted: #8a8478;
+
+  --border-default: #e0dcd2;
+  --border-hover: #ccc7ba;
+
+  --status-success: #16a34a;
+  --status-warning: #d97706;
+  --status-error: #dc2626;
+
+  --shadow-glow: rgba(120, 1, 21, 0.06);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Tailwind v4 Theme Tokens — reference CSS vars for dynamic theming
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-roomiebill-primary: var(--app-primary);
+
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-bg-card: var(--bg-card);
+  --color-bg-card-hover: var(--bg-card-hover);
+  --color-bg-input: var(--bg-input);
+  --color-bg-elevated: var(--bg-elevated);
+
+  --color-accent-primary: var(--accent-primary);
+  --color-accent-secondary: var(--accent-secondary);
+  --color-accent-highlight: var(--accent-highlight);
+  --color-accent-danger: var(--accent-danger);
+
+  --color-t-primary: var(--text-primary);
+  --color-t-secondary: var(--text-secondary);
+  --color-t-muted: var(--text-muted);
+
+  --color-b-default: var(--border-default);
+  --color-b-hover: var(--border-hover);
+
+  --color-status-success: var(--status-success);
+  --color-status-warning: var(--status-warning);
+  --color-status-error: var(--status-error);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Base Layer
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-default) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--border-default);
+    border-radius: 3px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Utility Classes
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@layer utilities {
+  .card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-default);
+    transition:
+      background-color 0.3s ease,
+      border-color 0.3s ease;
+  }
+
+  .card-hover:hover {
+    background-color: var(--bg-card-hover);
+    border-color: var(--border-hover);
+  }
+
+  .text-gradient-brand {
+    background: linear-gradient(
+      135deg,
+      var(--accent-primary),
+      var(--accent-secondary)
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Animations
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+.animate-slide-in {
+  animation: slide-in 0.25s ease-out;
+}
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-card) 25%,
+    var(--bg-elevated) 50%,
+    var(--bg-card) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}

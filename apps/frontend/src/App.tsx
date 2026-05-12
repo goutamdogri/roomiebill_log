@@ -1,5 +1,7 @@
+import { Dashboard } from "./components/Dashboard";
+
 function App() {
-  return <p className="text-7xl text-rose-500">Hello world</p>;
+  return <Dashboard />;
 }
 
 export default App;

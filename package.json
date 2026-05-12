@@ -4,7 +4,8 @@
   "license": "ISC",
   "private": true,
   "scripts": {
-    "dev:backend": "npm run dev --prefix backend",
-    "dev:frontend": "npm run dev --prefix frontend"
+    "dev:backend": "npm run dev --prefix apps/backend",
+    "dev:frontend": "npm run dev --prefix apps/frontend",
+    "dev": "npm run dev:backend & npm run dev:frontend"
   }
 }
