@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState, useMemo } from "react";
-import { config } from "../config";
+import { liveLogSocketClient } from "../lib/liveLogSocketClient";
 import type {
   LogEntry,
   LogFilters,
@@ -7,12 +7,10 @@ import type {
   RequestLog,
   ResponseLog,
   ConnectionStatus,
+  WsClientMessage,
   WsServerMessage,
 } from "../types/log";
 
-const RECONNECT_BASE_MS = 1000;
-const RECONNECT_MAX_MS = 30_000;
-const PING_INTERVAL_MS = 25_000;
 const MAX_LOGS = 500;
 
 interface UseLiveLogsReturn {
@@ -32,13 +30,10 @@ interface UseLiveLogsReturn {
 }
 
 export function useLiveLogs(): UseLiveLogsReturn {
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectAttempt = useRef(0);
-  const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const pingInterval = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
-
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [status, setStatus] = useState<ConnectionStatus>("connecting");
+  const [status, setStatus] = useState<ConnectionStatus>(
+    liveLogSocketClient.getStatus(),
+  );
   const [historyCursor, setHistoryCursor] = useState<number | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -48,6 +43,7 @@ export function useLiveLogs(): UseLiveLogsReturn {
   // Buffer for logs received while paused
   const pausedBuffer = useRef<LogEntry[]>([]);
   const isPausedRef = useRef(false);
+  const activeFiltersRef = useRef<LogFilters>({});
 
   const togglePause = useCallback(() => {
     setIsPaused((prev) => {
@@ -65,15 +61,13 @@ export function useLiveLogs(): UseLiveLogsReturn {
     });
   }, []);
 
-  const send = useCallback((data: object) => {
-    const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(data));
-    }
+  const send = useCallback((data: WsClientMessage) => {
+    liveLogSocketClient.send(data);
   }, []);
 
   const subscribe = useCallback(
     (filters: LogFilters) => {
+      activeFiltersRef.current = filters;
       setActiveFilters(filters);
       send({ type: "subscribe", filters });
     },
@@ -81,6 +75,7 @@ export function useLiveLogs(): UseLiveLogsReturn {
   );
 
   const unsubscribe = useCallback(() => {
+    activeFiltersRef.current = {};
     setActiveFilters({});
     send({ type: "unsubscribe" });
   }, [send]);
@@ -104,33 +99,30 @@ export function useLiveLogs(): UseLiveLogsReturn {
     setHasMore(false);
   }, []);
 
-  const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+  useEffect(() => {
+    const unsubscribeListener = liveLogSocketClient.subscribe({
+      onStatusChange: (nextStatus) => {
+        setStatus(nextStatus);
+        if (nextStatus !== "connected") {
+          setIsLoadingHistory(false);
+          return;
+        }
 
-    setStatus("connecting");
-    const ws = new WebSocket(config.wsUrl);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      setStatus("connected");
-      reconnectAttempt.current = 0;
-
-      // Start keep-alive pings
-      pingInterval.current = setInterval(() => {
-        send({ type: "ping" });
-      }, PING_INTERVAL_MS);
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const msg: WsServerMessage = JSON.parse(event.data);
-
+        const filters = activeFiltersRef.current;
+        if (Object.keys(filters).length > 0) {
+          send({ type: "subscribe", filters });
+        }
+      },
+      onMessage: (msg: WsServerMessage) => {
         switch (msg.type) {
           case "initial_logs":
             setLogs(msg.data);
             if (msg.data.length > 0) {
               setHistoryCursor(msg.data[msg.data.length - 1].id);
               setHasMore(true);
+            } else {
+              setHistoryCursor(null);
+              setHasMore(false);
             }
             break;
 
@@ -159,10 +151,12 @@ export function useLiveLogs(): UseLiveLogsReturn {
             break;
 
           case "subscribed":
+            activeFiltersRef.current = msg.filters;
             setActiveFilters(msg.filters);
             break;
 
           case "unsubscribed":
+            activeFiltersRef.current = {};
             setActiveFilters({});
             break;
 
@@ -171,41 +165,19 @@ export function useLiveLogs(): UseLiveLogsReturn {
             setIsLoadingHistory(false);
             break;
 
-          // connected, pong — no-op
+          default:
+            break;
         }
-      } catch {
-        console.error("[WS] Failed to parse message");
-      }
-    };
+      },
+    });
 
-    ws.onclose = () => {
-      setStatus("disconnected");
-      clearInterval(pingInterval.current);
-      wsRef.current = null;
-
-      // Exponential backoff reconnect
-      const delay = Math.min(
-        RECONNECT_BASE_MS * 2 ** reconnectAttempt.current,
-        RECONNECT_MAX_MS,
-      );
-      reconnectAttempt.current++;
-      reconnectTimeout.current = setTimeout(connect, delay);
-    };
-
-    ws.onerror = () => {
-      setStatus("error");
-    };
-  }, [send]);
-
-  useEffect(() => {
-    connect();
+    liveLogSocketClient.acquire();
 
     return () => {
-      clearTimeout(reconnectTimeout.current);
-      clearInterval(pingInterval.current);
-      wsRef.current?.close();
+      unsubscribeListener();
+      liveLogSocketClient.release();
     };
-  }, [connect]);
+  }, [send]);
 
   // ── Derive request-response pairs from flat log array ──
   const pairs = useMemo<LogPair[]>(() => {

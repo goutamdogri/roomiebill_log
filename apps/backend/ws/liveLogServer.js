@@ -32,6 +32,7 @@ const MAX_CONNECTIONS = 100;
 const INITIAL_LOG_COUNT = 50;
 const HISTORY_PAGE_SIZE = 50;
 const MAX_HISTORY_PAGE_SIZE = 200;
+const DUPLICATE_CONNECTION_CLOSE_CODE = 4009;
 
 // ─── Public API ───────────────────────────────────────────────────────
 
@@ -72,13 +73,27 @@ function initLiveLogServer(server) {
 
   // ── New connection handler ──
   wss.on("connection", async (ws, req) => {
+    const clientId = _getClientId(req);
     const ip =
       req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
+
+    const existingClient = broadcastManager.findClientById(clientId);
+    if (existingClient && existingClient !== ws) {
+      console.warn(
+        `[WS] Duplicate client session detected for ${clientId} from ${ip}; closing previous connection`,
+      );
+      existingClient.close(
+        DUPLICATE_CONNECTION_CLOSE_CODE,
+        "Superseded by a newer connection",
+      );
+      broadcastManager.removeClient(existingClient);
+    }
+
     console.log(
-      `[WS] Client connected: ${ip}  (total: ${broadcastManager.clientCount + 1})`,
+      `[WS] Client connected: ${ip}  (total: ${broadcastManager.clientCount + 1})  (clientId: ${clientId})`,
     );
 
-    broadcastManager.addClient(ws);
+    broadcastManager.addClient(ws, { clientId });
 
     // Welcome message
     _send(ws, {
@@ -110,7 +125,9 @@ function initLiveLogServer(server) {
     });
 
     ws.on("close", () => {
-      console.log(`[WS] Client disconnected: ${ip}`);
+      console.log(
+        `[WS] Client disconnected: ${ip}${clientId ? ` (${clientId})` : ""}`,
+      );
       broadcastManager.removeClient(ws);
     });
 
@@ -125,6 +142,17 @@ function initLiveLogServer(server) {
 
   console.log("[WS] Live log server initialised on /ws/logs");
   return wss;
+}
+
+function _getClientId(req) {
+  try {
+    const baseUrl = `ws://${req.headers.host || "localhost"}`;
+    const url = new URL(req.url || "/ws/logs", baseUrl);
+    const clientId = url.searchParams.get("clientId");
+    return clientId && clientId.trim() ? clientId.trim() : null;
+  } catch {
+    return null;
+  }
 }
 
 // ─── Message router ───────────────────────────────────────────────────
@@ -308,9 +336,7 @@ async function _queryHistoryTable(table, logType, filters, cursor, limit) {
     }
   }
 
-  const where = conditions.length
-    ? `WHERE ${conditions.join(" AND ")}`
-    : "";
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const query = `
     SELECT *, '${logType}' AS log_type
@@ -384,16 +410,17 @@ async function _initPgListener() {
           if (rows[0]) broadcastManager.broadcast(rows[0], "response");
         }
       } catch (err) {
-        console.error("[PG LISTEN] Error processing notification:", err.message);
+        console.error(
+          "[PG LISTEN] Error processing notification:",
+          err.message,
+        );
       }
     });
 
     await client.query("LISTEN new_request_log");
     await client.query("LISTEN new_response_log");
 
-    console.log(
-      "[PG LISTEN] Subscribed to new_request_log, new_response_log",
-    );
+    console.log("[PG LISTEN] Subscribed to new_request_log, new_response_log");
 
     // Handle connection loss — attempt reconnect
     client.on("error", (err) => {

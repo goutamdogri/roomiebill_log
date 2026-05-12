@@ -10,14 +10,18 @@ const { WebSocket } = require("ws");
 
 class BroadcastManager {
   constructor() {
-    /** @type {Map<WebSocket, { filters: object|null, isAlive: boolean }>} */
+    /** @type {Map<WebSocket, { filters: object|null, isAlive: boolean, clientId: string|null }>} */
     this.clients = new Map();
   }
 
   // ─── Client lifecycle ───────────────────────────────────────────────
 
-  addClient(ws) {
-    this.clients.set(ws, { filters: null, isAlive: true });
+  addClient(ws, options = {}) {
+    this.clients.set(ws, {
+      filters: null,
+      isAlive: true,
+      clientId: options.clientId || null,
+    });
   }
 
   removeClient(ws) {
@@ -27,6 +31,18 @@ class BroadcastManager {
   markAlive(ws) {
     const client = this.clients.get(ws);
     if (client) client.isAlive = true;
+  }
+
+  findClientById(clientId) {
+    if (!clientId) return null;
+
+    for (const [ws, meta] of this.clients) {
+      if (meta.clientId === clientId) {
+        return ws;
+      }
+    }
+
+    return null;
   }
 
   get clientCount() {

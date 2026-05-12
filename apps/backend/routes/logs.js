@@ -308,9 +308,7 @@ async function queryTable(table, logType, filters, cursor, limit) {
     }
   }
 
-  const where = conditions.length
-    ? `WHERE ${conditions.join(" AND ")}`
-    : "";
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const query = `
     SELECT *, '${logType}' AS log_type
