@@ -99,6 +99,16 @@ export function useLiveLogs(): UseLiveLogsReturn {
     setHasMore(false);
   }, []);
 
+  // const logIncomingPayload = useCallback((source: string, entries: LogEntry[]) => {
+  //   for (const entry of entries) {
+  //     if (entry.log_type === "request") {
+  //       console.log("[LiveLogs] request payload", { source, data: entry });
+  //     } else {
+  //       console.log("[LiveLogs] response payload", { source, data: entry });
+  //     }
+  //   }
+  // }, []);
+
   useEffect(() => {
     const unsubscribeListener = liveLogSocketClient.subscribe({
       onStatusChange: (nextStatus) => {
@@ -116,6 +126,7 @@ export function useLiveLogs(): UseLiveLogsReturn {
       onMessage: (msg: WsServerMessage) => {
         switch (msg.type) {
           case "initial_logs":
+            // logIncomingPayload("initial_logs", msg.data);
             setLogs(msg.data);
             if (msg.data.length > 0) {
               setHistoryCursor(msg.data[msg.data.length - 1].id);
@@ -127,17 +138,27 @@ export function useLiveLogs(): UseLiveLogsReturn {
             break;
 
           case "log":
-            if (isPausedRef.current) {
-              pausedBuffer.current.unshift(msg.data);
-              if (pausedBuffer.current.length > MAX_LOGS) {
-                pausedBuffer.current = pausedBuffer.current.slice(0, MAX_LOGS);
+            {
+              const normalizedLog: LogEntry =
+                msg.logType === "request"
+                  ? { ...msg.data, log_type: "request" }
+                  : { ...msg.data, log_type: "response" };
+
+              // logIncomingPayload("live_log", [normalizedLog]);
+
+              if (isPausedRef.current) {
+                pausedBuffer.current.unshift(normalizedLog);
+                if (pausedBuffer.current.length > MAX_LOGS) {
+                  pausedBuffer.current = pausedBuffer.current.slice(0, MAX_LOGS);
+                }
+              } else {
+                setLogs((prev) => [normalizedLog, ...prev].slice(0, MAX_LOGS));
               }
-            } else {
-              setLogs((prev) => [msg.data, ...prev].slice(0, MAX_LOGS));
             }
             break;
 
           case "history":
+            // logIncomingPayload("history", msg.data);
             setLogs((prev) => {
               const existingIds = new Set(prev.map((l) => `${l.log_type}-${l.id}`));
               const newEntries = msg.data.filter(

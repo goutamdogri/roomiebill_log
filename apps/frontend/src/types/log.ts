@@ -27,6 +27,8 @@ export interface ResponseLog {
 }
 
 export type LogEntry = RequestLog | ResponseLog;
+export type LiveRequestPayload = Omit<RequestLog, "log_type">;
+export type LiveResponsePayload = Omit<ResponseLog, "log_type">;
 
 // ─── Filter Types ───────────────────────────────────────────────────
 
@@ -63,7 +65,18 @@ export type WsClientMessage =
 export type WsServerMessage =
   | { type: "connected"; message: string; timestamp: string }
   | { type: "initial_logs"; data: LogEntry[]; count: number }
-  | { type: "log"; logType: "request" | "response"; data: LogEntry; timestamp: string }
+  | {
+      type: "log";
+      logType: "request";
+      data: LiveRequestPayload;
+      timestamp: string;
+    }
+  | {
+      type: "log";
+      logType: "response";
+      data: LiveResponsePayload;
+      timestamp: string;
+    }
   | { type: "history"; data: LogEntry[]; nextCursor: number | null; hasMore: boolean }
   | { type: "subscribed"; filters: LogFilters; message: string }
   | { type: "unsubscribed"; message: string }
