@@ -16,29 +16,18 @@ export function ThemeToggle() {
     >
       <div
         className={`flex-1 h-full flex items-center justify-center rounded-full ${
-          isDark ? "" : "bg-accent-secondary"
+          isDark ? "" : "bg-roomiebill-primary"
         }`}
       >
         <Sun size={18} color="white" />
       </div>
       <div
         className={`flex-1 h-full flex items-center justify-center rounded-full ${
-          isDark ? "bg-accent-secondary" : ""
+          isDark ? "bg-roomiebill-primary" : ""
         }`}
       >
         <Moon size={18} />
       </div>
-      {/* Track icons */}
-      {/* <span className="absolute left-1.5 text-xs">☀️</span>
-      <span className="absolute right-1.5 text-xs">🌙</span> */}
-
-      {/* <Moon className="absolute right-1.5 text-xs" /> */}
-      {/* Thumb */}
-      {/* <span
-        className={`h-6 w-6 rounded-full bg-accent-primary shadow-sm transition-transform duration-300 ${
-          isDark ? "translate-x-6" : "translate-x-0"
-        }`}
-      /> */}
     </button>
   );
 }
